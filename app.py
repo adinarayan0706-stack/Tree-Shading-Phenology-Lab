@@ -4,7 +4,8 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler
 HTML = """<!DOCTYPE html>
 <html>
 <head>
-    <title>Botanical Shade Analysis Simulator</title>
+    <meta charset="UTF-8">
+    <title>Botanical Shade Analysis</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
@@ -36,7 +37,7 @@ HTML = """<!DOCTYPE html>
 </head>
 <body>
 <div class="container">
-    <h1>Botanical Shade Analysis Simulator</h1>
+    <h1>Botanical Shade Analysis</h1>
     
     <div class="panel row">
         <div class="col">
@@ -46,7 +47,7 @@ HTML = """<!DOCTYPE html>
                 <option value="papaya">Papaya (Mat: 2 yrs)</option>
                 <option value="amla">Amla (Mat: 8 yrs)</option>
                 <option value="ber">Ber (Mat: 10 yrs)</option>
-                <option value="mango">Mango (Mat: 12 yrs)</option>
+                <option value="mango" selected>Mango (Mat: 12 yrs)</option>
                 <option value="kathal">Kathal (Mat: 15 yrs)</option>
                 <option value="jamun">Jamun (Mat: 20 yrs)</option>
                 <option value="sheesham">Sheesham (Mat: 25 yrs)</option>
@@ -54,12 +55,12 @@ HTML = """<!DOCTYPE html>
             </select>
         </div>
         <div class="col" style="flex: 2;">
-            <label>Age: <span id="lA">0.0</span> / <span id="lMA">1</span> Yrs</label>
-            <input type="range" id="age" min="0" step="0.001" value="0" oninput="update()">
+            <label>Age: <span id="lA">6.0</span> / <span id="lMA">12</span> Yrs</label>
+            <input type="range" id="age" min="0" step="0.01" value="6" oninput="update()">
         </div>
         <div class="col">
             <label>Time: <span id="lT">10:00</span></label>
-            <input type="range" id="time" min="6" max="18" step="0.01" value="10" oninput="update()">
+            <input type="range" id="time" min="6" max="18" step="0.05" value="10" oninput="update()">
         </div>
         <div class="col">
             <label>Day: <span id="lD">160</span></label>
@@ -74,10 +75,10 @@ HTML = """<!DOCTYPE html>
     <div class="stats">
         <div class="stat-card"><div class="stat-lbl">Height</div><div class="stat-val" id="oH">0.0 m</div></div>
         <div class="stat-card"><div class="stat-lbl">Crown Radius</div><div class="stat-val" id="oR">0.0 m</div></div>
-        <div class="stat-card"><div class="stat-lbl">Sun Elevation</div><div class="stat-val" id="oA">0.0°</div></div>
+        <div class="stat-card"><div class="stat-lbl">Sun Elevation</div><div class="stat-val" id="oA">0.0&deg;</div></div>
         <div class="stat-card"><div class="stat-lbl">Shadow Length</div><div class="stat-val" id="oS">0.0 m</div></div>
         <div class="stat-card"><div class="stat-lbl">Leaf Density</div><div class="stat-val" id="oL">100%</div></div>
-        <div class="stat-card hl"><div class="stat-lbl">Shaded Area</div><div class="stat-val" id="oArea">0.0 m²</div></div>
+        <div class="stat-card hl"><div class="stat-lbl">Shaded Area</div><div class="stat-val" id="oArea">0.0 m&sup2;</div></div>
     </div>
 
     <div style="margin-top: 15px;"><div id="view"></div></div>
@@ -92,7 +93,7 @@ HTML = """<!DOCTYPE html>
             <canvas id="c2"></canvas>
         </div>
         <div class="chart-box">
-            <div class="chart-title">Diurnal Shaded Area (m² vs Time)</div>
+            <div class="chart-title">Diurnal Shaded Area (m&sup2; vs Time)</div>
             <canvas id="c3"></canvas>
         </div>
         <div class="chart-box">
@@ -120,10 +121,10 @@ function calc(sp, a, t, d) {
     var m = T[sp];
     // 1. Growth Math: Power curves (fast early growth, slows down at maturity)
     var r = Math.min(1, a / m.age);
-    var gh = Math.pow(r, 0.6); // Height grows faster initially
-    var gr = Math.pow(r, 1.4); // Radius expands slower
-    if (gh < 0.05) gh = 0.05; 
-    if (gr < 0.05) gr = 0.05;
+    var gh = Math.pow(r, 0.6);
+    var gr = Math.pow(r, 1.1);
+    if (gh < 0.08) gh = 0.08;
+    if (gr < 0.08) gr = 0.08;
     
     var h = m.h * gh;
     var rad = m.r * gr;
@@ -142,7 +143,7 @@ function calc(sp, a, t, d) {
     var sh = h / Math.tan(el * Math.PI / 180);
     var ar = Math.PI * rad * (rad + sh / 2) * den;
     
-    return {h:h, rad:rad, gh:gh, gr:gr, den:den, el:el, sh:sh, ar:ar};
+    return {h:h, rad:rad, gh:gh, gr:gr, den:den, drop:drop, el:el, sh:sh, ar:ar};
 }
 
 // --- 3D VISUALIZATION ---
@@ -155,7 +156,7 @@ ren.shadowMap.enabled = true;
 ren.shadowMap.type = THREE.PCFSoftShadowMap; 
 dom.appendChild(ren.domElement);
 
-var cX = 0.6, cY = 0.4, cR = 40, tgt = new THREE.Vector3(0, 2, 0);
+var cX = 0.6, cY = 0.38, cR = 26, tgt = new THREE.Vector3(0, 3, 0);
 function uCam() { cam.position.set(cR*Math.cos(cY)*Math.sin(cX), tgt.y+cR*Math.sin(cY), cR*Math.cos(cY)*Math.cos(cX)); cam.lookAt(tgt); }
 uCam();
 
@@ -164,75 +165,89 @@ var drag=false, pX=0, pY=0;
 ren.domElement.onmousedown=function(e){drag=true;pX=e.clientX;pY=e.clientY;};
 window.onmouseup=function(){drag=false;};
 window.onmousemove=function(e){if(!drag)return;cX-=(e.clientX-pX)*.01;cY=Math.max(.05,Math.min(1.4,cY+(e.clientY-pY)*.01));pX=e.clientX;pY=e.clientY;uCam();};
-ren.domElement.onwheel=function(e){e.preventDefault();cR=Math.max(10,Math.min(100,cR+e.deltaY*.05));uCam();};
+ren.domElement.onwheel=function(e){e.preventDefault();cR=Math.max(8,Math.min(80,cR+e.deltaY*.04));uCam();};
 
 // Lights
-scn.add(new THREE.AmbientLight(0xffffff, 0.6));
-var sunL = new THREE.DirectionalLight(0xffffff, 1);
+scn.add(new THREE.AmbientLight(0xffffff, 0.62));
+var sunL = new THREE.DirectionalLight(0xffffff, 1.1);
 sunL.castShadow = true; 
 sunL.shadow.mapSize.width = 2048; sunL.shadow.mapSize.height = 2048;
-sunL.shadow.camera.left = -100; sunL.shadow.camera.right = 100; sunL.shadow.camera.top = 100; sunL.shadow.camera.bottom = -100;
+sunL.shadow.camera.left = -40; sunL.shadow.camera.right = 40; sunL.shadow.camera.top = 40; sunL.shadow.camera.bottom = -40;
 scn.add(sunL);
-var sunM = new THREE.Mesh(new THREE.SphereGeometry(3,32,32), new THREE.MeshBasicMaterial({color:0xffcc00})); 
+var sunM = new THREE.Mesh(new THREE.SphereGeometry(2,24,24), new THREE.MeshBasicMaterial({color:0xffcc00})); 
 scn.add(sunM);
 
-// Ground & Grid
-scn.add(new THREE.Mesh(new THREE.PlaneGeometry(300,300), new THREE.MeshLambertMaterial({color:0xffffff})).rotateX(-Math.PI/2));
-scn.add(new THREE.GridHelper(300, 60, 0xaaaaaa, 0xdddddd));
+// Ground & Grid (enabled receiveShadow so the 3D tree casts a visible shadow)
+var groundMesh = new THREE.Mesh(new THREE.PlaneGeometry(300,300), new THREE.MeshLambertMaterial({color:0xf5f5f5}));
+groundMesh.rotation.x = -Math.PI/2;
+groundMesh.receiveShadow = true;
+scn.add(groundMesh);
+scn.add(new THREE.GridHelper(200, 50, 0xaaaaaa, 0xdddddd));
 
 var tGrp = new THREE.Group(); 
 scn.add(tGrp); 
-var leaves = [];
+var leaves = [], crownParts = [];
 
 function build(sp) {
     while(tGrp.children.length > 0) tGrp.remove(tGrp.children[0]); 
-    leaves = [];
+    leaves = []; crownParts = [];
     var m = T[sp], wm = new THREE.MeshLambertMaterial({color:m.w}), lm = new THREE.MeshLambertMaterial({color:m.l});
     
     if (sp === 'banana' || sp === 'papaya') {
-        var th = sp==='banana' ? 3 : 4, tr = sp==='banana' ? 0.4 : 0.2;
-        var trunk = new THREE.Mesh(new THREE.CylinderGeometry(tr, tr*1.5, th, 8), wm); 
+        var th = sp==='banana' ? 3 : 4.2, tr = sp==='banana' ? 0.35 : 0.22;
+        var trunk = new THREE.Mesh(new THREE.CylinderGeometry(tr*0.8, tr*1.3, th, 8), wm); 
         trunk.position.y = th/2; trunk.castShadow = true; tGrp.add(trunk);
         
         var lg = new THREE.SphereGeometry(0.5, 8, 8); 
-        lg.scale(1.2, 0.1, 3.5); 
-        lg.translate(0, 0, 1.75);
+        lg.scale(1.1, 0.08, 3.2); 
+        lg.translate(0, 0, 1.6);
         
-        for (var i=0; i<8; i++) {
-            var pv = new THREE.Group(); pv.position.y = th; pv.rotation.y = i*Math.PI/4; pv.rotation.x = -0.4;
+        for (var i=0; i<9; i++) {
+            var pv = new THREE.Group(); pv.position.y = th; pv.rotation.y = i*Math.PI*2/9; pv.rotation.x = -0.35 + (i%2)*0.12;
             var lf = new THREE.Mesh(lg, lm); lf.castShadow = true; pv.add(lf); tGrp.add(pv);
+            crownParts.push(lf);
         }
     } else {
         var isTall = (sp==='sagvan' || sp==='sheesham' || sp==='jamun');
         var isShrub = (sp==='ber' || sp==='amla');
-        var th = isTall ? 7 : isShrub ? 2.5 : 4;
-        var tr = isTall ? 0.5 : isShrub ? 0.3 : 0.6;
+        var th = isTall ? 6.0 : isShrub ? 2.8 : 4.2;
+        var tr = isTall ? 0.45 : isShrub ? 0.3 : 0.55;
         
-        var trunk = new THREE.Mesh(new THREE.CylinderGeometry(tr*0.8, tr, th, 12), wm); 
+        var trunk = new THREE.Mesh(new THREE.CylinderGeometry(tr*0.7, tr, th, 10), wm); 
         trunk.position.y = th/2; trunk.castShadow = true; tGrp.add(trunk);
         
-        // Distinct canopy spheres (fixed the "blob" issue by increasing spread)
-        var lg = new THREE.IcosahedronGeometry(isShrub ? 1.5 : 1.8, 1);
-        var n = isTall ? 6 : isShrub ? 7 : 5;
-        var spd = isTall ? 3.0 : isShrub ? 3.5 : 2.5; 
+        var lg = new THREE.IcosahedronGeometry(isShrub ? 1.5 : 1.9, 1);
+        var n = isTall ? 6 : isShrub ? 7 : 6;
+        var spd = isTall ? 2.4 : isShrub ? 2.3 : 2.6; 
         
         for (var i=0; i<n; i++) {
+            var ang = i*Math.PI*2/n;
+            // Wooden branch connecting trunk to canopy cluster
+            var br = new THREE.Mesh(new THREE.CylinderGeometry(tr*0.25, tr*0.45, spd*1.1, 6), wm);
+            br.position.set(Math.cos(ang)*spd*0.45, th + 0.4, Math.sin(ang)*spd*0.45);
+            br.rotation.z = -Math.cos(ang)*0.7;
+            br.rotation.x = Math.sin(ang)*0.7;
+            br.castShadow = true; tGrp.add(br);
+
             var c = new THREE.Mesh(lg, lm); 
-            var yOffset = th + (isTall ? 2 : isShrub ? 0.8 : 1.5) + (Math.random()*0.5);
-            c.position.set(Math.cos(i*Math.PI*2/n)*spd, yOffset, Math.sin(i*Math.PI*2/n)*spd); 
+            var yOffset = th + (isTall ? 1.5 : isShrub ? 0.8 : 1.2) + (i%2)*0.4;
+            c.position.set(Math.cos(ang)*spd, yOffset, Math.sin(ang)*spd); 
             c.castShadow = true; tGrp.add(c);
+            crownParts.push(c);
         }
         var top = new THREE.Mesh(lg, lm); 
-        top.position.y = th + (isTall ? 3.5 : isShrub ? 1 : 2.5); 
+        top.position.y = th + (isTall ? 2.8 : isShrub ? 1.6 : 2.4); 
+        top.scale.set(1.2, 0.9, 1.2);
         top.castShadow = true; tGrp.add(top);
+        crownParts.push(top);
     }
     
     // Falling Leaves
-    var pG = new THREE.PlaneGeometry(0.6, 0.6);
-    for (var i=0; i<30; i++) {
-        var p = new THREE.Mesh(pG, new THREE.MeshLambertMaterial({color:m.l, side:THREE.DoubleSide, transparent:true, opacity:0.8}));
-        p.position.set((Math.random()-0.5)*8, 3+Math.random()*8, (Math.random()-0.5)*8);
-        p.userData = {v: 0.02+Math.random()*0.02, rx: Math.random()*0.1, ry: Math.random()*0.1}; 
+    var pG = new THREE.PlaneGeometry(0.45, 0.45);
+    for (var i=0; i<28; i++) {
+        var p = new THREE.Mesh(pG, new THREE.MeshLambertMaterial({color:0xc87a28, side:THREE.DoubleSide, transparent:true, opacity:0.85}));
+        p.position.set((Math.random()-0.5)*6, 1+Math.random()*6, (Math.random()-0.5)*6);
+        p.userData = {v: 0.02+Math.random()*0.02, rx: Math.random()*0.08, ry: Math.random()*0.08}; 
         tGrp.add(p); leaves.push(p);
     }
 }
@@ -245,28 +260,53 @@ function draw(id, fn) {
     fn(x, c.clientWidth, c.clientHeight);
 }
 
-function chart(id, sp, d, color, isArea) {
+function chart(id, sp, curT, curD, color, isArea) {
     draw(id, function(x, w, h) {
-        var p = 35, pw = w - 2*p, ph = h - 2*p, pts = [];
-        var max = 0;
+        var pl = 56, pr = 24, pt = 24, pb = 30;
+        var pw = w - pl - pr, ph = h - pt - pb, pts = [];
+        var max = isArea ? 0 : 100;
+        var curAge = parseFloat(document.getElementById('age').value);
         
-        // Find true maximum value for the Y-axis
         for (var i=0; i<=100; i++) {
-            var val = isArea ? calc(sp, parseFloat(document.getElementById('age').value), 7+(i/100)*10, d).ar : 1.0;
-            if (val > max) max = val;
+            var val;
+            if (isArea) {
+                val = calc(sp, curAge, 7 + (i/100)*10, curD).ar;
+                if (val > max) max = val;
+            } else {
+                val = calc(sp, curAge, 12, 1 + (i/100)*364).den * 100;
+            }
             pts.push(val);
         }
-        if (max < 0.1) max = 0.1;
+        if (max < 1) max = 1;
         
-        x.strokeStyle='#eee'; for(var i=0;i<=4;i++){x.beginPath();x.moveTo(p,p+(i/4)*ph);x.lineTo(w-p,p+(i/4)*ph);x.stroke();}
-        x.strokeStyle='#000'; x.beginPath();x.moveTo(p,p);x.lineTo(p,h-p);x.lineTo(w-p,h-p);x.stroke();
+        x.strokeStyle='#eee';
+        for(var i=0;i<=4;i++){
+            x.beginPath();x.moveTo(pl,pt+(i/4)*ph);x.lineTo(w-pr,pt+(i/4)*ph);x.stroke();
+        }
+        x.strokeStyle='#000';
+        x.beginPath();x.moveTo(pl,pt);x.lineTo(pl,h-pb);x.lineTo(w-pr,h-pb);x.stroke();
+        
         x.strokeStyle=color; x.lineWidth=2; x.beginPath();
         for(var i=0;i<=100;i++){
-            var px=p+(i/100)*pw, py=(h-p)-(pts[i]/max)*ph;
+            var px=pl+(i/100)*pw, py=(h-pb)-(pts[i]/max)*ph;
             if(i===0)x.moveTo(px,py);else x.lineTo(px,py);
         }
-        x.stroke(); x.fillStyle='#000'; x.font='11px monospace'; x.textAlign='right'; x.fillText(isArea?max.toFixed(1)+' m²':(max*100).toFixed(0)+'%', p-5, p+10);
-        x.textAlign='center'; x.fillText(isArea?'7AM':'Jan', p, h-10); x.fillText(isArea?'12PM':'Jun', p+pw/2, h-10); x.fillText(isArea?'5PM':'Dec', w-p, h-10);
+        x.stroke();
+
+        // Draw live marker dot for current Time or Day
+        var prog = isArea ? Math.max(0, Math.min(1, (curT - 7) / 10)) : (curD - 1) / 364;
+        var curVal = isArea ? calc(sp, curAge, curT, curD).ar : calc(sp, curAge, 12, curD).den * 100;
+        var dotX = pl + prog * pw, dotY = (h - pb) - (curVal / max) * ph;
+        x.fillStyle = color;
+        x.beginPath(); x.arc(dotX, dotY, 4, 0, Math.PI*2); x.fill();
+
+        x.fillStyle='#000'; x.font='11px monospace'; x.textAlign='right';
+        x.fillText(isArea ? max.toFixed(1)+' m²' : '100%', pl-6, pt+8);
+        x.fillText(isArea ? '0 m²' : '0%', pl-6, h-pb);
+        x.textAlign='center';
+        x.fillText(isArea?'7AM':'Jan', pl, h-10);
+        x.fillText(isArea?'12PM':'Jun', pl+pw/2, h-10);
+        x.fillText(isArea?'5PM':'Dec', w-pr, h-10);
     });
 }
 
@@ -288,70 +328,75 @@ function update() {
     document.getElementById('oArea').innerText = s.ar.toFixed(1) + ' m²';
     
     tGrp.scale.set(s.gr, s.gh, s.gr);
+    var leafScale = 0.35 + 0.65 * (s.den / T[sp].maxL);
+    for (var i=0; i<crownParts.length; i++) crownParts[i].scale.setScalar(leafScale);
     for (var i=0; i<leaves.length; i++) leaves[i].visible = (s.den > 0.15);
-    tgt.y = Math.max(2, s.h/2); 
+    tgt.y = Math.max(2, s.h * 0.45); 
     uCam();
     
     // Update 3D Sun Position
     var az = ((t-6)/12) * Math.PI; 
     var el = s.el * (Math.PI/180);
-    sunL.position.set(Math.cos(az)*Math.cos(el)*80, Math.sin(el)*80, Math.sin(az)*Math.cos(el)*80); 
+    sunL.position.set(Math.cos(az)*Math.cos(el)*60, Math.sin(el)*60, Math.sin(az)*Math.cos(el)*60); 
     sunM.position.copy(sunL.position);
     
     // 1. SIDE ELEVATION CHART
     draw('c1', function(x, w, h) {
-        var p = 40, gy = h - 30;
-        var maxTreeH = T[sp].h; 
-        var sc = (h - 2*p) / maxTreeH; 
-        var shW = Math.min(s.sh * sc, w/2 - p); 
+        var p = 32, gy = h - 28;
+        var maxScale = Math.max(T[sp].h + T[sp].r, s.h + s.sh * 0.6);
+        var sc = (h - p - 32) / maxScale;
+        var treeTopY = gy - s.h * sc;
+        var crownR = s.rad * sc;
+        var crownCY = treeTopY + crownR * 0.65;
+        var shW = Math.min(s.sh * sc, w/2 - p);
 
         x.strokeStyle='#000'; x.beginPath(); x.moveTo(p,gy); x.lineTo(w-p,gy); x.stroke();
-        x.fillStyle='rgba(0,0,0,0.2)'; x.beginPath(); x.ellipse(w/2 - shW/2, gy, shW/2, 5, 0, 0, Math.PI*2); x.fill();
-        x.fillStyle='#555'; x.fillRect(w/2 - 4, gy - s.h*sc, 8, s.h*sc);
-        x.fillStyle='rgba(76,175,80,'+s.den+')'; x.beginPath(); x.arc(w/2, gy - s.h*sc, s.rad*sc, 0, Math.PI*2); x.fill();
+        x.fillStyle='rgba(0,0,0,0.25)'; x.beginPath(); x.ellipse(w/2 - shW/2, gy, shW/2, 4, 0, 0, Math.PI*2); x.fill();
+        x.fillStyle='#5c4033'; x.fillRect(w/2 - 3, crownCY, 6, gy - crownCY);
+        x.fillStyle='rgba(76,175,80,'+s.den+')'; x.beginPath(); x.arc(w/2, crownCY, crownR, 0, Math.PI*2); x.fill();
+
+        // Dashed sun ray line grazing canopy top down to shadow tip
+        x.strokeStyle='#f59e0b'; x.setLineDash([4, 3]); x.lineWidth=1.5;
+        x.beginPath(); x.moveTo(w/2 + 25, treeTopY - 14); x.lineTo(w/2 - shW, gy); x.stroke();
+        x.setLineDash([]);
         
         x.fillStyle='#000'; x.font='11px monospace'; x.textAlign='center';
-        x.fillText('H: '+s.h.toFixed(1)+'m', w/2, gy - s.h*sc - s.rad*sc - 10);
+        x.fillText('H: '+s.h.toFixed(1)+'m', w/2, Math.max(14, treeTopY - 6));
         x.fillText('L: '+s.sh.toFixed(1)+'m', w/2 - shW/2, gy + 15);
     });
 
-    // 2. TOP-DOWN PLAN FOOTPRINT (FIXED MATH)
+    // 2. TOP-DOWN PLAN FOOTPRINT
     draw('c2', function(x, w, h) {
         var cx = w/2, cy = h/2;
-        // Scale by the total width (radius + shadow) to ensure everything fits
-        var maxVisual = s.rad + s.sh; 
-        if (maxVisual === 0) maxVisual = 1;
-        var sc = (w/2 - 20) / maxVisual;
+        var maxVisual = Math.max(T[sp].r * 2.2, s.rad + s.sh);
+        var sc = (Math.min(w, h)/2 - 22) / maxVisual;
 
-        x.strokeStyle='#eee'; x.beginPath(); x.moveTo(cx, 10); x.lineTo(cx, h-10); x.stroke();
-        x.beginPath(); x.moveTo(10, cy); x.lineTo(w-10, cy); x.stroke();
+        x.strokeStyle='#eee'; x.beginPath(); x.moveTo(cx, 12); x.lineTo(cx, h-12); x.stroke();
+        x.beginPath(); x.moveTo(12, cy); x.lineTo(w-12, cy); x.stroke();
 
         x.save(); 
         x.translate(cx, cy); 
-        // Sun angle: 6AM (0), 12PM (PI/2), 6PM (PI)
         var sunAngle = ((t - 6) / 12) * Math.PI; 
         x.rotate(sunAngle); 
         
-        x.fillStyle='rgba(0,0,0,0.2)';
+        x.fillStyle='rgba(0,0,0,0.22)';
         x.beginPath(); 
-        // Draw shadow extending backwards from origin
-        x.ellipse(-s.sh*sc/2, 0, s.sh*sc/2, s.rad*sc, 0, 0, Math.PI*2); 
+        x.ellipse(-s.sh*sc/2, 0, (s.rad + s.sh/2)*sc, s.rad*sc, 0, 0, Math.PI*2); 
         x.fill();
         x.restore();
 
-        // Draw Canopy exactly at origin
         x.fillStyle='rgba(76,175,80,'+s.den+')';
         x.beginPath(); x.arc(cx, cy, s.rad*sc, 0, Math.PI*2); x.fill();
 
         x.fillStyle='#000'; x.font='12px monospace'; x.textAlign='center';
-        x.fillText('N', cx, 15); x.fillText('S', cx, h-5);
-        x.textAlign='left'; x.fillText('W', 5, cy+4);
-        x.textAlign='right'; x.fillText('E', w-5, cy+4);
+        x.fillText('N', cx, 14); x.fillText('S', cx, h-4);
+        x.textAlign='left'; x.fillText('W', 6, cy+4);
+        x.textAlign='right'; x.fillText('E', w-6, cy+4);
     });
 
     // 3 & 4. AREA & DENSITY CHARTS
-    chart('c3', sp, d, '#1a73e8', true); 
-    chart('c4', sp, d, '#ff7f0e', false);
+    chart('c3', sp, t, d, '#1a73e8', true); 
+    chart('c4', sp, t, d, '#ff7f0e', false);
 }
 
 // --- ANIMATION CONTROLS ---
@@ -363,20 +408,20 @@ function togglePlay() {
     
     if (play) {
         var a = document.getElementById('age'), m = parseFloat(a.max);
-        if (parseFloat(a.value) >= m - 0.1) a.value = 0;
+        if (parseFloat(a.value) >= m - 0.05) a.value = 0.05;
         
         tm = setInterval(function() {
-            if (parseFloat(a.value) < m) a.value = Math.min(m, parseFloat(a.value) + m/150);
+            if (parseFloat(a.value) < m) a.value = Math.min(m, parseFloat(a.value) + m/240);
             var t = document.getElementById('time'), d = document.getElementById('day');
-            var nt = parseFloat(t.value) + 0.05;
+            var nt = parseFloat(t.value) + 0.15;
             if (nt >= 18) {
                 t.value = 6; 
-                d.value = (parseInt(d.value) + 1) % 365 || 365;
+                d.value = (parseInt(d.value) % 365) + 1;
             } else {
                 t.value = nt;
             }
             update();
-        }, 30);
+        }, 35);
     } else {
         clearInterval(tm);
     }
@@ -385,7 +430,7 @@ function togglePlay() {
 function changeTree() {
     if (play) togglePlay(); 
     var sp = document.getElementById('sp').value, m = T[sp].age, a = document.getElementById('age');
-    a.max = m; a.value = 0; 
+    a.max = m; a.value = (m * 0.6).toFixed(2); 
     document.getElementById('lMA').innerText = m; 
     build(sp); 
     update();
@@ -407,8 +452,8 @@ function loop() {
         l.rotation.y += l.userData.ry;
         
         if (l.position.y < 0.1) { 
-            l.position.y = 3 + Math.random() * 6; 
-            l.position.x = (Math.random() - 0.5) * 8; 
+            l.position.y = 2.5 + Math.random() * 5; 
+            l.position.x = (Math.random() - 0.5) * 5; 
         }
     }
     ren.render(scn, cam);
@@ -428,8 +473,13 @@ window.onresize = function() {
 </html>"""
 
 class Handler(SimpleHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass
     def do_GET(self):
-        self.send_response(200); self.send_header("Content-type", "text/html"); self.end_headers(); self.wfile.write(HTML.encode())
+        self.send_response(200)
+        self.send_header("Content-type", "text/html; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(HTML.encode("utf-8"))
 
 if __name__ == "__main__":
     print("Running on http://localhost:8080")
